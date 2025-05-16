@@ -1,2 +1,4 @@
 mcp>=1.2.0
-numpy>=2.2.5    # For matrix operations
+fastapi
+numpy>=1.20.0 # Consider a specific version like 1.26.4 if issues arise
+scipy>=1.13.0 # For probability and statistics functions
