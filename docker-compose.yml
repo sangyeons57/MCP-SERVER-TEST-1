@@ -1,0 +1,11 @@
+services:
+  calculator-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+    # 환경 변수가 필요하다면 여기에 추가
+    # environment:
+    #   - KEY=value 
