@@ -7,10 +7,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사
-COPY calculator_mcp.py .
+# 필요한 모든 .py 파일을 복사합니다.
+COPY main_mcp_server.py .
+COPY arithmetic_tools.py .
+COPY linalg_tools.py .
+# 만약 stats_tools.py 등 다른 모듈이 추가되면 여기에 COPY 구문을 추가합니다.
 
-# uvicorn이 사용할 8000 포트 노출
+# uvicorn(mcp.run 내부에서 사용)이 사용할 8000 포트 노출
 EXPOSE 8000
 
-# 컨테이너 실행 시 Python 스크립트를 직접 실행
-CMD ["python", "calculator_mcp.py"]
+# 컨테이너 실행 시 메인 서버 스크립트를 실행
+CMD ["python", "main_mcp_server.py"]
