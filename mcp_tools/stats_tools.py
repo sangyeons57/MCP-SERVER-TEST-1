@@ -1,6 +1,6 @@
 import math
 import statistics # Import the statistics module
-from typing import List, Union
+from typing import List, Union, Tuple, Dict
 from scipy import stats # For confidence interval
 import numpy as np # For sqrt, and potentially if other stats functions need it
 
@@ -152,6 +152,182 @@ def confidence_interval_mean(
         
     return interval # (lower_bound, upper_bound)
 
+def pearson_correlation(data1: List[float], data2: List[float]) -> Dict[str, float]:
+    """
+    Calculates the Pearson correlation coefficient and the p-value for testing non-correlation.
+    Args:
+        data1: First list of numbers.
+        data2: Second list of numbers. Must have the same length as data1.
+    Returns:
+        A dictionary with 'correlation_coefficient' and 'p_value'.
+    Raises:
+        ValueError: If lists are not of the same length or have less than 2 elements.
+    """
+    if len(data1) != len(data2):
+        raise ValueError("Input lists must have the same length for correlation.")
+    if len(data1) < 2:
+        raise ValueError("At least two data points are required for correlation.")
+    
+    corr_coeff, p_value = stats.pearsonr(data1, data2)
+    if np.isnan(corr_coeff): # Handle cases like constant input where correlation is undefined
+        raise ValueError("Pearson correlation coefficient is undefined (NaN), possibly due to constant input data.")
+    return {"correlation_coefficient": float(corr_coeff), "p_value": float(p_value)}
+
+def spearman_correlation(data1: List[float], data2: List[float]) -> Dict[str, float]:
+    """
+    Calculates the Spearman rank-order correlation coefficient and the p-value.
+    Args:
+        data1: First list of numbers.
+        data2: Second list of numbers. Must have the same length as data1.
+    Returns:
+        A dictionary with 'correlation_coefficient' and 'p_value'.
+    Raises:
+        ValueError: If lists are not of the same length or have less than 2 elements.
+    """
+    if len(data1) != len(data2):
+        raise ValueError("Input lists must have the same length for Spearman correlation.")
+    if len(data1) < 2:
+        raise ValueError("At least two data points are required for Spearman correlation.")
+        
+    corr_coeff, p_value = stats.spearmanr(data1, data2)
+    if np.isnan(corr_coeff):
+        raise ValueError("Spearman correlation coefficient is undefined (NaN), possibly due to constant input data or ties.")
+    return {"correlation_coefficient": float(corr_coeff), "p_value": float(p_value)}
+
+def covariance(data1: List[float], data2: List[float], population: bool = False) -> float:
+    """
+    Calculates the covariance between two lists of numbers.
+    Args:
+        data1: First list of numbers.
+        data2: Second list of numbers. Must have the same length as data1.
+        population: If True, calculates population covariance (N).
+                    If False (default), calculates sample covariance (N-1).
+    Returns:
+        The covariance value.
+    Raises:
+        ValueError: If lists are not of the same length or have less than 2 elements for sample covariance.
+    """
+    if len(data1) != len(data2):
+        raise ValueError("Input lists must have the same length for covariance.")
+    n = len(data1)
+    if n == 0:
+        raise ValueError("Cannot calculate covariance of empty lists.")
+    if not population and n < 2:
+        raise ValueError("Sample covariance requires at least two data points.")
+
+    # numpy.cov returns a covariance matrix. We need the covariance between data1 and data2.
+    # For two variables, cov_matrix[0, 1] (or cov_matrix[1,0]) is the covariance.
+    # ddof=0 for population covariance (N), ddof=1 for sample covariance (N-1).
+    cov_matrix = np.cov(data1, data2, ddof=0 if population else 1)
+    return float(cov_matrix[0, 1])
+
+def simple_linear_regression(x_values: List[float], y_values: List[float]) -> Dict[str, float]:
+    """
+    Performs a simple linear regression (y = slope * x + intercept).
+    Args:
+        x_values: List of independent variable values.
+        y_values: List of dependent variable values. Must have the same length as x_values.
+    Returns:
+        A dictionary containing 'slope', 'intercept', 'r_value' (Pearson correlation),
+        'p_value' (for the slope), and 'stderr' (standard error of the estimate).
+    Raises:
+        ValueError: If lists are not of the same length or have less than 2 elements.
+    """
+    if len(x_values) != len(y_values):
+        raise ValueError("Input lists must have the same length for linear regression.")
+    if len(x_values) < 2:
+        raise ValueError("At least two data points are required for linear regression.")
+        
+    slope, intercept, r_value, p_value, stderr = stats.linregress(x_values, y_values)
+    return {
+        "slope": float(slope),
+        "intercept": float(intercept),
+        "r_value": float(r_value),
+        "p_value": float(p_value),
+        "stderr_of_estimate": float(stderr)
+    }
+
+def t_test_1samp(sample_data: List[float], popmean: float, alternative: str = 'two-sided') -> Dict[str, float]:
+    """
+    Performs a one-sample t-test to check if the sample mean is different from a known population mean.
+    Args:
+        sample_data: List of sample observations.
+        popmean: The expected mean of the population.
+        alternative: Defines the alternative hypothesis.
+                     'two-sided': mean of underlying distribution is not equal to popmean (default)
+                     'less': mean of underlying distribution is less than popmean
+                     'greater': mean of underlying distribution is greater than popmean
+    Returns:
+        A dictionary with 'statistic' (t-statistic) and 'p_value'.
+    Raises:
+        ValueError: If sample_data has less than 2 elements or alternative is invalid.
+    """
+    if len(sample_data) < 2: # scipy.stats.ttest_1samp typically requires at least 2.
+        raise ValueError("One-sample t-test requires at least two data points in the sample.")
+    if alternative not in ['two-sided', 'less', 'greater']:
+        raise ValueError("Invalid alternative hypothesis. Choose from 'two-sided', 'less', 'greater'.")
+
+    statistic, p_value = stats.ttest_1samp(sample_data, popmean, alternative=alternative)
+    return {"statistic": float(statistic), "p_value": float(p_value)}
+
+def t_test_ind(sample1_data: List[float], sample2_data: List[float], equal_var: bool = True, alternative: str = 'two-sided') -> Dict[str, float]:
+    """
+    Performs an independent two-sample t-test to check if the means of two independent samples are different.
+    Args:
+        sample1_data: List of observations for the first sample.
+        sample2_data: List of observations for the second sample.
+        equal_var: If True (default), perform a standard independent 2 sample test
+                   that assumes equal population variances. If False, perform Welch's t-test,
+                   which does not assume equal population variance.
+        alternative: Defines the alternative hypothesis.
+                     'two-sided': means of the distributions are unequal.
+                     'less': mean of the distribution underlying sample1_data is less than the mean of the distribution underlying sample2_data.
+                     'greater': mean of the distribution underlying sample1_data is greater than the mean of the distribution underlying sample2_data.
+    Returns:
+        A dictionary with 'statistic' (t-statistic) and 'p_value'.
+    Raises:
+        ValueError: If samples have less than 2 elements or alternative is invalid.
+    """
+    if len(sample1_data) < 2 or len(sample2_data) < 2:
+         raise ValueError("Independent two-sample t-test requires at least two data points in each sample.")
+    if alternative not in ['two-sided', 'less', 'greater']:
+        raise ValueError("Invalid alternative hypothesis. Choose from 'two-sided', 'less', 'greater'.")
+
+    statistic, p_value = stats.ttest_ind(sample1_data, sample2_data, equal_var=equal_var, alternative=alternative)
+    return {"statistic": float(statistic), "p_value": float(p_value)}
+
+def chi_squared_test(observed_freq: List[int], expected_freq: List[int] = None) -> Dict[str, float]:
+    """
+    Performs a Chi-squared goodness of fit test.
+    Tests the null hypothesis that the categorical data has the given frequencies.
+    Args:
+        observed_freq: List of observed frequencies in each category.
+        expected_freq: List of expected frequencies in each category.
+                       If None, the test assumes uniform distribution (all categories equally likely).
+                       Must have the same length as observed_freq if provided.
+    Returns:
+        A dictionary with 'statistic' (Chi-squared statistic) and 'p_value'.
+    Raises:
+        ValueError: If lengths of observed and expected frequencies don't match (if expected_freq is provided),
+                    or if any frequency is negative, or sum of frequencies is zero.
+    """
+    if any(f < 0 for f in observed_freq):
+        raise ValueError("Observed frequencies cannot be negative.")
+    if expected_freq is not None and any(f <= 0 for f in expected_freq): # Expected frequencies should be > 0
+        raise ValueError("Expected frequencies must be positive.")
+    if expected_freq is not None and len(observed_freq) != len(expected_freq):
+        raise ValueError("Observed and expected frequencies must have the same length.")
+    if sum(observed_freq) == 0:
+        raise ValueError("Total observed frequency cannot be zero.")
+    if expected_freq is not None and sum(expected_freq) == 0:
+         raise ValueError("Total expected frequency cannot be zero.")
+    # Note: scipy.stats.chisquare normalizes expected frequencies if they don't sum to observed.
+    # For simplicity, we might want to enforce sum(observed) == sum(expected) if expected is provided.
+    # However, scipy handles it, so we can allow it.
+    
+    statistic, p_value = stats.chisquare(f_obs=observed_freq, f_exp=expected_freq)
+    return {"statistic": float(statistic), "p_value": float(p_value)}
+
 def get_stats_tools() -> list:
     """Returns a list of all statistical tool functions."""
     return [
@@ -160,5 +336,12 @@ def get_stats_tools() -> list:
         mode,
         variance,
         standard_deviation,
-        confidence_interval_mean # Added new tool
+        confidence_interval_mean,
+        pearson_correlation,
+        spearman_correlation,
+        covariance,
+        simple_linear_regression,
+        t_test_1samp,
+        t_test_ind,
+        chi_squared_test
     ] 

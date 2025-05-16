@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List
+from typing import List, Dict, Tuple, Any
 
 # Note: The @mcp.tool() decorator will be applied in main_mcp_server.py
 # when these functions are registered.
@@ -125,42 +125,169 @@ def solve_linear_system(matrix_a: List[List[float]], vector_b: List[float]) -> L
     except Exception as e:
         raise Exception(f"An unexpected error occurred while solving linear system: {e}")
 
-def eigen_decomposition(matrix_a: List[List[float]]) -> dict:
+def determinant(matrix: List[List[float]]) -> float:
+    """
+    Calculates the determinant of a square matrix.
+    Args:
+        matrix: A square matrix (list of lists of floats).
+    Returns:
+        The determinant of the matrix.
+    Raises:
+        ValueError: If the matrix is not square.
+    """
+    A = np.array(matrix, dtype=float)
+    if A.ndim != 2 or A.shape[0] != A.shape[1]:
+        raise ValueError("Matrix must be square to calculate its determinant.")
+    return np.linalg.det(A)
+
+def inverse_matrix(matrix: List[List[float]]) -> List[List[float]]:
+    """
+    Calculates the inverse of a square matrix.
+    Args:
+        matrix: A square, invertible matrix (list of lists of floats).
+    Returns:
+        The inverse of the matrix.
+    Raises:
+        ValueError: If the matrix is not square or is singular (not invertible).
+    """
+    A = np.array(matrix, dtype=float)
+    if A.ndim != 2 or A.shape[0] != A.shape[1]:
+        raise ValueError("Matrix must be square to calculate its inverse.")
+    try:
+        inv_A = np.linalg.inv(A)
+        return inv_A.tolist()
+    except np.linalg.LinAlgError:
+        raise ValueError("Matrix is singular and cannot be inverted.")
+
+def eigen_decomposition(matrix_a: List[List[float]]) -> Dict[str, List[Any]]:
     """
     Computes the eigenvalues and eigenvectors of a square matrix A.
+    Eigenvectors are returned as columns.
     Args:
         matrix_a: A square matrix (list of lists of floats).
     Returns:
         A dictionary with two keys:
-        'eigenvalues': A list of eigenvalues (can be complex).
-        'eigenvectors': A list of lists representing the eigenvectors (columns).
-                       Each eigenvector corresponds to an eigenvalue at the same index.
+        'eigenvalues': A list of eigenvalues (can be complex, returned as strings for JSON compatibility if complex).
+        'eigenvectors_as_columns': A list of lists, where each inner list is an eigenvector corresponding
+                                   to an eigenvalue at the same index in the 'eigenvalues' list.
+                                   Eigenvectors are represented as columns.
     Raises:
         ValueError: If matrix_a is not square or other numpy.linalg.LinAlgError occurs.
     """
-    A = np.array(matrix_a, dtype=float) # Use float for broader compatibility, eig can handle it
-
+    A = np.array(matrix_a, dtype=float)
     if A.ndim != 2 or A.shape[0] != A.shape[1]:
         raise ValueError("Matrix A must be square (n x n) for eigenvalue decomposition.")
 
     try:
-        eigenvalues, eigenvectors = np.linalg.eig(A)
-        # Eigenvalues can be complex, eigenvectors can also be complex.
+        eigenvalues, eigenvectors_matrix = np.linalg.eig(A)
+        
+        # Convert eigenvalues to string if complex for broader JSON compatibility, else float
+        processed_eigenvalues = []
+        for v in eigenvalues:
+            if isinstance(v, complex):
+                processed_eigenvalues.append(str(v)) # MCP/JSON might handle complex better as strings
+            else:
+                processed_eigenvalues.append(float(v))
+
         # np.linalg.eig returns eigenvectors as columns of a matrix.
+        # To return as a list of column vectors:
+        eigenvectors_as_columns_list = [col.tolist() for col in eigenvectors_matrix.T]
+
         return {
-            "eigenvalues": [complex(v) for v in eigenvalues], # Ensure complex type, convert if real
-            "eigenvectors": eigenvectors.T.tolist() # Transpose to get row-vectors, then list of lists
+            "eigenvalues": processed_eigenvalues,
+            "eigenvectors_as_columns": eigenvectors_as_columns_list
         }
     except np.linalg.LinAlgError as e:
-        # This can occur for various reasons, e.g., matrix not converging for the algorithm.
         raise ValueError(f"Eigenvalue decomposition failed: {e}")
     except Exception as e:
         raise Exception(f"An unexpected error occurred during eigenvalue decomposition: {e}")
+
+def lu_decomposition(matrix: List[List[float]]) -> Dict[str, List[List[float]]]:
+    """
+    Performs LU decomposition of a square matrix A such that A = PLU.
+    Note: scipy.linalg.lu returns P as a permutation matrix, L as lower triangular, U as upper triangular.
+          For simplicity, we'll return P, L, U directly.
+    Args:
+        matrix: A square matrix (list of lists of floats).
+    Returns:
+        A dictionary with keys 'P' (Permutation matrix), 'L' (Lower triangular matrix),
+        and 'U' (Upper triangular matrix).
+    Raises:
+        ValueError: If the matrix is not square or decomposition fails.
+    """
+    from scipy.linalg import lu # Import scipy.linalg only here
+    A = np.array(matrix, dtype=float)
+    if A.ndim != 2 or A.shape[0] != A.shape[1]:
+        raise ValueError("Matrix must be square for LU decomposition.")
+    try:
+        P, L, U = lu(A)
+        return {
+            "P": P.tolist(),
+            "L": L.tolist(),
+            "U": U.tolist()
+        }
+    except Exception as e: # Catching general exception as scipy.linalg.lu specific errors are less common
+        raise ValueError(f"LU decomposition failed: {e}")
+
+def qr_decomposition(matrix: List[List[float]]) -> Dict[str, List[List[float]]]:
+    """
+    Performs QR decomposition of a matrix A such that A = QR.
+    Q is an orthogonal matrix, R is an upper triangular matrix.
+    Args:
+        matrix: A matrix (list of lists of floats).
+    Returns:
+        A dictionary with keys 'Q' (Orthogonal matrix) and 'R' (Upper triangular matrix).
+    Raises:
+        ValueError: If decomposition fails.
+    """
+    A = np.array(matrix, dtype=float)
+    if A.ndim != 2:
+        raise ValueError("Input must be a 2D matrix for QR decomposition.")
+    try:
+        Q, R = np.linalg.qr(A)
+        return {
+            "Q": Q.tolist(),
+            "R": R.tolist()
+        }
+    except np.linalg.LinAlgError as e:
+        raise ValueError(f"QR decomposition failed: {e}")
+
+def svd_decomposition(matrix: List[List[float]]) -> Dict[str, List[Any]]:
+    """
+    Performs Singular Value Decomposition (SVD) of a matrix A such that A = U S Vh.
+    U: Unitary matrix having left singular vectors as columns.
+    S: The singular values, sorted in non-increasing order. This is a 1-D array.
+    Vh: Unitary matrix having right singular vectors as rows. (V.H, hermitian transpose of V)
+    Args:
+        matrix: A matrix (list of lists of floats).
+    Returns:
+        A dictionary with keys 'U' (Unitary matrix), 'S' (Singular values as a list),
+        and 'Vh' (Unitary matrix, V hermitian).
+    Raises:
+        ValueError: If decomposition fails.
+    """
+    A = np.array(matrix, dtype=float)
+    if A.ndim != 2:
+        raise ValueError("Input must be a 2D matrix for SVD.")
+    try:
+        U, s, Vh = np.linalg.svd(A)
+        return {
+            "U": U.tolist(),
+            "S": s.tolist(), # s is 1-D array
+            "Vh": Vh.tolist()
+        }
+    except np.linalg.LinAlgError as e:
+        raise ValueError(f"SVD failed: {e}")
 
 def get_linalg_tools() -> list:
     """Returns a list of all linear algebra tool functions."""
     return [
         matrix_add, matrix_subtract, matrix_scalar_multiply, matrix_multiply, transpose,
         solve_linear_system,
-        eigen_decomposition
+        determinant,
+        inverse_matrix,
+        eigen_decomposition,
+        lu_decomposition,
+        qr_decomposition,
+        svd_decomposition
     ] 

@@ -9,10 +9,12 @@ from mcp_tools.probability_tools import get_probability_tools
 from mcp_tools.optimization_tools import get_optimization_tools
 from mcp_tools.information_theory_tools import get_information_theory_tools
 from mcp_tools.distance_metrics_tools import get_distance_metrics_tools
-from mcp_tools.signal_processing_tools import get_signal_processing_tools
 from mcp_tools.algorithm_analysis_tools import get_algorithm_analysis_tools
 from mcp_tools.ml_metrics_tools import get_ml_metrics_tools
 from mcp_tools.graph_tools import get_graph_tools
+from mcp_tools.number_theory_tools import get_number_theory_tools
+from mcp_tools.conversion_tools import get_conversion_tools
+from mcp_tools.crypto_basics_tools import get_crypto_basics_tools
 
 # Create the main MCP server instance
 mcp = FastMCP("CalculatorMCP")
@@ -27,10 +29,12 @@ for tool_getter in [
     get_optimization_tools,
     get_information_theory_tools,
     get_distance_metrics_tools,
-    get_signal_processing_tools,
     get_algorithm_analysis_tools,
     get_ml_metrics_tools,
-    get_graph_tools
+    get_graph_tools,
+    get_number_theory_tools,
+    get_conversion_tools,
+    get_crypto_basics_tools
 ]:
     for tool_func in tool_getter():
         mcp.tool()(tool_func)
@@ -130,11 +134,6 @@ Distance Metrics (from distance_metrics_tools.py, requires numpy):
 - manhattan_distance(vec1, vec2): Manhattan distance between two vectors.
 - cosine_similarity(vec1, vec2): Cosine similarity between two vectors.
 
-Signal Processing (from signal_processing_tools.py, requires numpy):
---------------------------------------------------------------------
-- fourier_transform(signal, sampling_rate=1.0): Computes DFT of a real signal. 
-  Returns frequencies, complex FFT results (as strings), magnitudes, and phases.
-
 Algorithm Analysis (from algorithm_analysis_tools.py, uses math, numpy):
 -----------------------------------------------------------------------
 - big_o_evaluator(expression_str, variable_values): Evaluates a Big-O like expression string with variable values.
@@ -153,6 +152,25 @@ Graph Theory (from graph_tools.py, uses numpy):
 - node_degree(adjacency_matrix, node_index): Calculates degree of a node in an unweighted, undirected graph.
 - graph_density(adjacency_matrix, is_directed=False): Calculates density of an unweighted graph.
 
+Number Theory (from number_theory_tools.py, uses math):
+------------------------------------------------------
+- is_prime(n): Checks if an integer n is prime.
+- prime_factorization(n): Returns the prime factorization of a positive integer n.
+
+Conversion Tools (from conversion_tools.py, uses datetime):
+-----------------------------------------------------------
+- convert_temperature(value, from_unit, to_unit): Converts temperature (C, F, K).
+- convert_base(number_str, from_base, to_base): Converts number string between bases 2-36.
+- calculate_time_difference(datetime_str1, datetime_str2, format_str='%Y-%m-%d %H:%M:%S', output_unit='seconds'): Calculates time difference.
+- convert_units(value, from_unit, to_unit, category): Converts units for 'length', 'weight', 'data_decimal', 'data_binary'.
+
+Basic Cryptography (from crypto_basics_tools.py, uses hashlib):
+--------------------------------------------------------------
+- caesar_cipher(text, shift, mode='encrypt'): Encrypts/decrypts using Caesar cipher.
+- vigenere_cipher(text, key, mode='encrypt'): Encrypts/decrypts using Vigenere cipher.
+- calculate_md5(text): Calculates MD5 hash of a string.
+- calculate_sha256(text): Calculates SHA256 hash of a string.
+
 To use a tool, you can ask the assistant: "@CalculatorMCP <tool_name> <arguments>"
 For example: "@CalculatorMCP add a=5 b=3" or "@CalculatorMCP normal_pdf x=0 mean=0 std_dev=1"
     """
@@ -169,10 +187,12 @@ if __name__ == "__main__":
         "optimization": get_optimization_tools,
         "information theory": get_information_theory_tools,
         "distance metrics": get_distance_metrics_tools,
-        "signal processing": get_signal_processing_tools,
         "algorithm analysis": get_algorithm_analysis_tools,
         "ml metrics": get_ml_metrics_tools,
-        "graph theory": get_graph_tools
+        "graph theory": get_graph_tools,
+        "number theory": get_number_theory_tools,
+        "conversion": get_conversion_tools,
+        "cryptography": get_crypto_basics_tools
     }
     for name, getter in tool_getters.items():
         try:
